@@ -16,7 +16,7 @@ export function loadConfig() {
       baseUrl: process.env.AI_BASE_URL || 'http://localhost:20128/v1',
       apiKey: process.env.AI_API_KEY || '',
       model: process.env.AI_MODEL || 'ag/gemini-3.8-flash',
-      timeoutMs: Number(process.env.AI_TIMEOUT_MS || 60000),
+      timeoutMs: Number(process.env.AI_TIMEOUT_MS || 120000),
     },
   };
 }
