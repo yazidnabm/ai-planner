@@ -11,7 +11,7 @@ const dateQuerySchema = z.object({
   status: z.enum(['todo', 'in_progress', 'done']).optional(),
 });
 
-// Daftar task (dengan filter tanggal/status opsional)
+// List tasks (optional date/status filters)
 router.get('/', async (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
   res.json(data);
 });
 
-// Buat task manual
+// Create a task manually
 router.post('/', async (req, res) => {
   const parsed = taskCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
   res.status(201).json(data);
 });
 
-// Detail task (kepemilikan dicek)
+// Task detail (ownership checked)
 router.get('/:id', async (req, res) => {
   const { data, error } = await admin
     .from('tasks')
@@ -69,7 +69,7 @@ router.put('/:id', async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
   }
 
-  // Ambil task yang ada untuk validasi jadwal gabungan (merge)
+  // Fetch the existing task to validate the merged schedule
   const { data: existing } = await admin
     .from('tasks')
     .select('*')
@@ -95,7 +95,7 @@ router.put('/:id', async (req, res) => {
   res.json(data);
 });
 
-// Ubah status task
+// Change task status
 router.patch('/:id/status', async (req, res) => {
   const parsed = z.object({ status: z.enum(['todo', 'in_progress', 'done']) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Status tidak valid' });
@@ -111,8 +111,8 @@ router.patch('/:id/status', async (req, res) => {
   res.json(data);
 });
 
-// Hapus SEMUA task milik user (bulk delete). Harus didefinisikan sebelum /:id
-// agar path "/" tidak tertangkap sebagai parameter id.
+// Delete ALL tasks owned by the user (bulk delete). Must be declared before
+// /:id so the "/" path is not captured as an id parameter.
 router.delete('/', async (req, res) => {
   const { error } = await admin
     .from('tasks')
@@ -122,7 +122,21 @@ router.delete('/', async (req, res) => {
   res.status(204).end();
 });
 
-// Hapus task
+// Delete selected tasks (bulk delete by ids). Only user-owned tasks are removed.
+router.delete('/bulk', async (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string().min(1)).min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Daftar id task tidak valid' });
+
+  const { error } = await admin
+    .from('tasks')
+    .delete()
+    .in('id', parsed.data.ids)
+    .eq('user_id', req.userId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
+});
+
+// Delete a single task
 router.delete('/:id', async (req, res) => {
   const { error } = await admin
     .from('tasks')

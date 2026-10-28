@@ -18,7 +18,7 @@ export default function History() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
         <header className="mb-8 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft dark:bg-accent-soft-dark text-accent">
             <Sparkles size={20} />

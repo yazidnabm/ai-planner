@@ -103,7 +103,9 @@ router.post('/approve', async (req, res) => {
 
 /**
  * GET /api/planner/history
- * Simple plan history (FR-039..FR-041).
+ * Plan history (FR-039..FR-041). Ordered newest-first.
+ * No arbitrary cap: a personal planner should never silently drop entries.
+ * Supabase caps a single query at 1000 rows — far beyond realistic use here.
  */
 router.get('/history', async (req, res) => {
   const { data, error } = await admin
@@ -111,7 +113,7 @@ router.get('/history', async (req, res) => {
     .select('id, title, goal_description, plan_date, status, created_at')
     .eq('user_id', req.userId)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(1000);
   if (error) return res.status(500).json({ error: error.message });
 
   // Task count per plan (one query, not N+1)

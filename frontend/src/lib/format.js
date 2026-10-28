@@ -19,24 +19,38 @@ export function statusMeta(s) {
 }
 
 /**
- * Menghitung status efektif task berdasarkan waktu sekarang (status "hidup").
- * Aturan:
- * - "Selesai" manual (task.status === 'done') SELALU menang — tidak kembali ke Berjalan.
- * - Lewat end_time  → Selesai (otomatis).
- * - Dalam rentang start..end → Berjalan.
- * - Sebelum start → Belum mulai.
- * - Task tanpa jadwal lengkap → fallback ke status DB.
+ * Parse a task's local wall-clock time into an absolute Date.
+ * - Tolerates "HH:MM" and "HH:MM:SS" (AI/DB store both shapes).
+ * - Anchored to WIB (UTC+7), the app's canonical timezone, so status is
+ *   correct regardless of the viewer's device timezone.
+ * Returns null when either part is missing or malformed.
+ */
+function parseTaskTime(dateISO, time) {
+  if (!dateISO || !time) return null;
+  const m = String(time).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  const hh = String(m[1]).padStart(2, '0');
+  const mm = m[2];
+  const ss = m[3] || '00';
+  const d = new Date(`${dateISO}T${hh}:${mm}:${ss}+07:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Compute a task's effective status from the current time ("live" status).
+ * Rules:
+ * - Manual "Selesai" (task.status === 'done') ALWAYS wins — never reverts to in progress.
+ * - Past end_time  → Done (automatic).
+ * - Within start..end → In progress.
+ * - Before start → Not started.
+ * - Task without a full schedule → fall back to DB status.
  */
 export function deriveStatus(task, now = new Date()) {
-  // Selesai manual dihormati.
+  // Manual "Selesai" is respected.
   if (task.status === 'done') return 'done';
 
-  const start = task.task_date && task.start_time
-    ? new Date(`${task.task_date}T${task.start_time}:00`)
-    : null;
-  const end = task.task_date && task.end_time
-    ? new Date(`${task.task_date}T${task.end_time}:00`)
-    : null;
+  const start = parseTaskTime(task.task_date, task.start_time);
+  const end = parseTaskTime(task.task_date, task.end_time);
   const t = now.getTime();
 
   if (start && end) {
@@ -65,8 +79,8 @@ export function formatMinutes(mins) {
 }
 
 export function todayISO() {
-  // Tanggal LOKAL (bukan UTC). toISOString() bergeser hari untuk zona waktu
-  // di belakang UTC (mis. WIB/UTC+7), sehingga "hari ini" bisa jadi kemarin.
+  // LOCAL date (not UTC). toISOString() shifts the day for timezones behind
+  // UTC (e.g. WIB/UTC+7), which would turn "today" into "yesterday".
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
